@@ -508,6 +508,14 @@ $.extend( Scroller.prototype, {
 		// Add class to 'announce' that we are a Scroller table
 		$(this.s.dt.nTableWrapper).addClass('DTS');
 
+		// ØS: alsoScrollEl handling
+		if (this.s.alsoScrollEl) {
+			// Move element into scrolling container
+			this.s.alsoScrollEl.prependTo(this.dom.scroller);
+			// Initially header is fixed, set state flag
+			this.s.alsoScrollingHeader = false;
+		}
+
 		// Add a 'loading' indicator
 		if ( this.s.loadingIndicator )
 		{
@@ -631,6 +639,41 @@ $.extend( Scroller.prototype, {
 
 		if ( this.s.ingnoreScroll ) {
 			return;
+		}
+
+		// ØS: toggle header position if alsoScrollEl is specified
+		if (this.s.alsoScrollEl) {
+			// Header should be in page (not on top)
+			if (iScrollTop < this.s.alsoScrollEl.outerHeight()) {
+				// Check if state set aleady
+				if (!this.s.alsoScrollingHeader) {
+					this.s.alsoScrollingHeader = true;
+
+					if (!this.dom.header) {
+						this.dom.header = $(this.dom.scroller).prev().find('table');
+					}
+					// Move header into scrolling container (between alsoScrollEl and table)
+					this.dom.header.insertBefore(this.dom.table);
+					// Adjust table top position
+					this.dom.table.style.top = this.s.alsoScrollEl.outerHeight() + 40 /* header row */ + this.s.tableTop +'px';
+					// Adjust container height (to fill outer container)
+					$(this.dom.scroller).height($(this.dom.scroller).closest('.scroll-y').height());
+				}
+			} else { // toggle back
+				// Check if state set aleady
+				if (this.s.alsoScrollingHeader) {
+					this.s.alsoScrollingHeader = false;
+
+					var target = $(this.dom.scroller).prev().find('.dataTables_scrollHeadInner');
+
+					// Move to statically positioned (top) container
+					this.dom.header.appendTo(target);
+					// Adjust table top position
+					this.dom.table.style.top = this.s.alsoScrollEl.outerHeight() + this.s.tableTop +'px';
+					// Adjust container height (to make space for fixed header row)
+					$(this.dom.scroller).height($(this.dom.scroller).height() - 41 /*his.dom.header.height()*/);
+				}
+			}
 		}
 
 		/* If the table has been sorted or filtered, then we use the redraw that
@@ -837,7 +880,12 @@ $.extend( Scroller.prototype, {
 			tableTop = heights.scroll - iTableHeight;
 		}
 
-		this.dom.table.style.top = tableTop+'px';
+		// ØS: set top point
+		if (this.s.alsoScrollEl) {
+			this.dom.table.style.top = this.s.alsoScrollEl.outerHeight() + 40 /* header row */ + tableTop+'px';
+		} else {
+			this.dom.table.style.top = tableTop+'px';
+		}
 
 		/* Cache some information for the scroller */
 		this.s.tableTop = tableTop;
